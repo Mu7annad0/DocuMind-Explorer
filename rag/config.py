@@ -13,7 +13,7 @@ class Config:
 
     class Model:
         EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
-        RERANKER = "ms-marco-MINILM-L-12-v2"
+        RERANKER = "ms-marco-MiniLM-L-12-v2"
         LOCAL_LLM = "gemma2:9b"
         TEMP = 0.0
         MAX_TOKENS = 7000
@@ -22,6 +22,7 @@ class Config:
     class Retriever:
         USE_RERANKER = True
         USE_CHAIN_FILTER = False
+        K = 5
 
     DEBUG = True
     CONV_MESSAGES = 6
