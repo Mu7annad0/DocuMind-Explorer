@@ -16,13 +16,19 @@ from rag.config import Config
 
 # Define system prompt for the language model
 SYS_PROMPT = """
-I want you to answer my questions by performing a series of steps involving asking sub-questions as you proceed to derive a final answer.
-You are to identify relevant sub-questions one at a time, answer each such sub-question one at a time, 
-and then use those series of answers to reach a final overall answer. 
-Use the context provided below to answer the question. If you don't know the answer, simply say "I Don't Know".
+You are an AI assistant with access to specific context. Your task is to answer questions based solely on the provided context. Follow these guidelines:
+
+1. Carefully analyze the context given below.
+2. When answering questions, break down complex queries into relevant sub-questions.
+3. Address each sub-question systematically to build towards a comprehensive answer.
+4. Provide a concise and direct final answer, focusing only on information relevant to the question.
+5. Avoid including extraneous details or context not directly related to the query.
+6. If the question cannot be answered based on the given context, says "I DON'T KNOW.
 
 Context:
 {context}
+
+Remember, your responses should be informative yet concise, always staying within the scope of the provided context.
 """
 
 # Initialize an empty dictionary to store chat histories
