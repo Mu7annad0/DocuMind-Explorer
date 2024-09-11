@@ -14,33 +14,36 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 
 from rag.config import Config
 
-
+# Define system prompt for the language model
 SYS_PROMPT = """
-Use the following pieces of context to answer the question from user. If you don't know the answer, just say that you don't know. 
-Use three sentences maximum and keep the answer concise (---).
+I want you to answer my questions by performing a series of steps involving asking sub-questions as you proceed to derive a final answer.
+You are to identify relevant sub-questions one at a time, answer each such sub-question one at a time, 
+and then use those series of answers to reach a final overall answer. 
+Use the context provided below to answer the question. If you don't know the answer, simply say "I Don't Know".
 
 Context:
 {context}
 """
 
-
+# Initialize an empty dictionary to store chat histories
 store = {}
+# Function to get or create a chat history for a given session
 def get_session_history(session_id: str) -> ChatMessageHistory:
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
 
-
+# Function to remove URLs from text using regex
 def remove_links(text: str) -> str:
     """
     Remove links from the given text.
     """
-    # Use regex to find all URLs in the text
+    # Define regex pattern for URLs
     url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-    # Replace all URLs with an empty string
+    # Replace all URLs with an empty string and return the result
     return url_pattern.sub('', text)
 
-
+# Function to format a list of documents into a single string
 def format_documents(documents: List[Document]) -> str:
     texts = []
     for doc in documents:
@@ -48,11 +51,12 @@ def format_documents(documents: List[Document]) -> str:
         texts.append("---")
     return remove_links("\n".join(texts))
 
-
+# Function to create a RAG (Retrieval-Augmented Generation) chain
 def create_chain(llm: BaseLanguageModel, retriever: VectorStoreRetriever) -> Runnable:
     """
     Create a chain for RAG.
     """
+    # Create a chat prompt template
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", SYS_PROMPT),
@@ -60,6 +64,7 @@ def create_chain(llm: BaseLanguageModel, retriever: VectorStoreRetriever) -> Run
             ("human", "{question}")
         ]
     )
+    # Define the chain of operations
     chain = (
         RunnablePassthrough.assign(context=itemgetter("question")
         | retriever.with_config({"run_name": "context_retrieval"})
@@ -67,15 +72,17 @@ def create_chain(llm: BaseLanguageModel, retriever: VectorStoreRetriever) -> Run
     | prompt
     | llm
     )
+    # Wrap the chain with message history functionality
     return RunnableWithMessageHistory(
         chain,
         get_session_history,
         input_messages_key="question",
         history_messages_key="chat_history"
     ).with_config({"run_name": "chain_answer"})
- 
 
+# Asynchronous function to process questions using the RAG chain
 async def ask_question(chain: Runnable, question: str, session_id: str):
+    # Stream events from the chain execution
     async for event in chain.astream_events(
         {"question": question},
         config={
@@ -86,7 +93,9 @@ async def ask_question(chain: Runnable, question: str, session_id: str):
         include_names=["context_retriever", "chain_answer"],
     ):
         event_type = event["event"]
+        # Yield retrieved context when retriever finishes
         if event_type == "on_retriever_end":
             yield event["data"]["output"]
+        # Yield generated answer chunks as they become available
         if event_type == "on_chain_stream":
             yield event["data"]["chunk"].content
