@@ -90,7 +90,7 @@ def show_chat_interface(chain):
         # Generate and display AI response
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
-            message_placeholder.markdown("Give me a moment, I'm processing...")
+            message_placeholder.markdown("Give me a moment, I'm processing............")
             full_response = ""
             async def process_response():
                 nonlocal full_response
