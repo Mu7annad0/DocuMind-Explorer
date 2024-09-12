@@ -1,4 +1,5 @@
 from typing import Optional
+import os
 
 from langchain.retrievers import ContextualCompressionRetriever  # Import ContextualCompressionRetriever for advanced retrieval
 from langchain.retrievers.document_compressors.chain_filter import LLMChainFilter  # Import LLMChainFilter for filtering retrieved documents
@@ -27,10 +28,21 @@ def create_retriever(
         }
     )
     if Config.Retriever.USE_RERANKER:  # Check if reranking is enabled in config
-        retriever = ContextualCompressionRetriever(  # Create a ContextualCompressionRetriever with reranking
-            base_compressor=FlashrankRerank(model=Config.Model.RERANKER),  # Initialize FlashrankRerank with the specified model
-            base_retriever=retriever  # Use the previously created retriever as the base
-        )
+        # Set a specific cache directory
+        os.environ['FLASHRANK_CACHE_DIR'] = os.path.expanduser('~/.cache/flashrank')
+        
+        try:
+            reranker = FlashrankRerank(model=Config.Model.RERANKER)
+            retriever = ContextualCompressionRetriever(
+                base_compressor=reranker,
+                base_retriever=retriever
+            )
+            print("Reranker initialized successfully")
+        except Exception as e:
+            print(f"Error initializing FlashrankRerank: {e}")
+            print("Falling back to retriever without reranking")
+            # Retriever remains unchanged if reranking fails
+
     if Config.Retriever.USE_CHAIN_FILTER:  # Check if chain filtering is enabled in config
         retriever = ContextualCompressionRetriever(  # Create a ContextualCompressionRetriever with chain filtering
             base_compressor=LLMChainFilter.from_llm(llm), base_retriever=retriever  # Initialize LLMChainFilter with the provided language model
