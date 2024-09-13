@@ -59,12 +59,12 @@ def show_upload_documents():
         st.sidebar.warning("Feed me PDFs, and I shall grant you wisdom! 📚✨")
         return None
     # Build and return the QA chain if files are uploaded
-    with st.spinner("Decoding the secrets within your documents..."):
+    with st.spinner("Processing your documents..."):
         return build_qa_chain(uploaded_files)
 
 # Function to display the chat interface
 def show_chat_interface(chain):
-    st.title("🧠 Converse with Your Digital Library")
+    st.title("Chat with Your Documents")
     
     # Initialize chat history if it doesn't exist
     if "messages" not in st.session_state:
