@@ -1,32 +1,37 @@
 """Retriever"""
-from typing import Optional
-
-from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers import ContextualCompressionRetriever, EnsembleRetriever
 from langchain.retrievers.document_compressors.chain_filter import LLMChainFilter
 from langchain_core.language_models import BaseLanguageModel
-from langchain_core.vectorstores import VectorStore, VectorStoreRetriever
-from langchain_qdrant import Qdrant
-from langchain_cohere import CohereEmbeddings, CohereRerank
+from langchain_core.vectorstores import VectorStoreRetriever
+from langchain_cohere import CohereRerank
 
 from rag.config import Config
 
 
 def create_retriever(
         llm: BaseLanguageModel,
-        vector_store: Optional[VectorStore] = None
+        vector_stores
 ) -> VectorStoreRetriever:
-    """Crearte the retrievar"""
-    if vector_store is None:
-        vector_store = Qdrant.from_existing_collection(
-            collection_name=Config.Database.DOCUMENT_COLLECTION,
-            path=Config.Path.DATABASE_DIR,
-            embedding=CohereEmbeddings(model="embed-english-v3.0")
-        )
-    retriever = vector_store.as_retriever(
-        search_type="similarity",
+    """
+    Creates an ensemble retriever.
+    The ensemble retriever is a combination of two retrievers:
+        1. Embedding-Based Retrieval: This is the vector database retriever.
+        2. Term-Based Retrieval: This is the keyword retriever.
+    The ensemble retriever is also known as the (hybrid search).
+
+    The vector stores should contain two items:
+        1. Vector Database: This will be used to create the embedding-based retrieval.
+        2. Term-based retrieval: This is the keyword retriever.
+    """
+    vector_db, keyword_retriever = vector_stores
+    retriever_vector_db = vector_db.as_retriever(
+        retriever="similarity",
         search_kwargs={
             "k": Config.Retriever.K
         }
+    )
+    retriever = EnsembleRetriever(
+        retrievers=[retriever_vector_db, keyword_retriever], weights=[0.5, 0.5]
     )
     if Config.Retriever.USE_RERANKER:
         try:
@@ -37,7 +42,7 @@ def create_retriever(
             )
             print("Reranker initialized successfully")
         except (ValueError, TypeError) as e:
-            print(f"Error initializing FlashrankRerank: {e}")
+            print(f"Error initializing CohereRerank: {e}")
             print("Falling back to retriever without reranking")
 
     if Config.Retriever.USE_CHAIN_FILTER:

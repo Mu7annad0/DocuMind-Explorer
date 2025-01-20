@@ -8,6 +8,7 @@ from langchain_core.vectorstores import VectorStore
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_qdrant import Qdrant
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.retrievers import BM25Retriever
 from rag.config import Config
 
 
@@ -45,9 +46,16 @@ class Indexing:
         documents = self.recursive_splitter.split_documents(
             self.semantic_splitter.create_documents(["\n".join(documents)])
         )
-        return Qdrant.from_documents(
+        # Semantic Search using Qdrant Vector databae.
+        vector_db = Qdrant.from_documents(
             documents = documents,
             embedding=self.embeddings,
             path = Config.Path.DATABASE_DIR,
             collection_name = Config.Database.DOCUMENT_COLLECTION
         )
+        # Used BM25 for keyword search to be added for the Hybrid Search
+        keyword_retriever = BM25Retriever.from_documents(
+            documents = documents,
+            k = Config.Retriever.K
+        )
+        return [vector_db, keyword_retriever]
